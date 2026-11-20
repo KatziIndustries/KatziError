@@ -58,7 +58,13 @@ build-linux-shared:
 		-o build/xdg-shell-protocol.o
 
 	gcc -shared -o libkerror.so build/*.o \
-		$(pkg-config --libs wayland-client)
+		-L/usr/local/lib \
+		-lwayland-client \
+		-lffi \
+		-lX11 \
+		-lxcb \
+		-lXau \
+		-lXdmcp
 
 build-windows:
 	mkdir -p build
