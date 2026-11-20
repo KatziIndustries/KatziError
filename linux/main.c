@@ -30,7 +30,8 @@ SessionType get_session_type(void) {
     return SESSION_UNKNOWN;
 }
 
-int kerror(char *text) {
+int kerror(char *text)
+{
     switch (get_session_type()) {
         case SESSION_X11:
             return linux_x11(text);
