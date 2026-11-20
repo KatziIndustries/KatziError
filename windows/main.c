@@ -2,6 +2,5 @@
 
 int kerror(char *text)
 {
-    printf("Weil Baum!\n");
-    return 0;
+    return windows_native(text);
 }

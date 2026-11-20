@@ -24,7 +24,7 @@ build-linux:
 	ar rcs libkerror.a \
 		build/*.o
 
-	gcc test/main.c -L. -lkerror \
+#	gcc test/main.c -L. -lkerror \
 		-L/usr/local/lib \
 		-lwayland-client \
 		-lffi \
