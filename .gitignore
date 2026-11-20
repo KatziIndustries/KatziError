@@ -1,0 +1,4 @@
+build/
+test/
+app
+libkerror.a
