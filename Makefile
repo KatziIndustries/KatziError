@@ -41,6 +41,10 @@ build-windows:
 		-I./include \
 		-o build/main.o
 
+	gcc -c windows/native.c \
+		-I./include \
+		-o build/native.o
+
 	ar rcs libkerror.a \
 		build/*.o
 
