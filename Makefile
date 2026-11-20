@@ -34,6 +34,32 @@ build-linux:
 		-lXdmcp \
 		-o app
 
+build-linux-shared:
+	mkdir -p build
+
+	gcc -fPIC -c linux/main.c \
+		$(pkg-config --cflags wayland-client) \
+		-I./include \
+		-o build/main.o
+
+	gcc -fPIC -c linux/x11.c \
+		$(pkg-config --cflags wayland-client) \
+		-I./include \
+		-o build/x11.o
+
+	gcc -fPIC -c linux/wayland.c \
+		$(pkg-config --cflags wayland-client) \
+		-I./include \
+		-o build/wayland.o
+
+	gcc -fPIC -c linux/xdg-shell-protocol.c \
+		$(pkg-config --cflags wayland-client) \
+		-I./include \
+		-o build/xdg-shell-protocol.o
+
+	gcc -shared -o libkerror.so build/*.o \
+		$(pkg-config --libs wayland-client)
+
 build-windows:
 	mkdir -p build
 
