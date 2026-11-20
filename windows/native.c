@@ -1,4 +1,3 @@
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <windowsx.h>
@@ -10,6 +9,17 @@
 
 #define W 560
 #define H 320
+
+// Button geometry (client coordinates)
+#define QUIT_X 115
+#define QUIT_Y 235
+#define OK_X   315
+#define OK_Y   235
+#define BTN_W  130
+#define BTN_H  48
+
+// Fixed-size window: no resize, no maximize
+#define WINDOW_STYLE (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX)
 
 typedef struct {
     HWND hwnd;
@@ -25,6 +35,26 @@ typedef struct {
 } WIN32_WINDOW;
 
 static WIN32_WINDOW *g_window = NULL;
+
+// ----------------------------------------
+// Helpers
+// ----------------------------------------
+
+static int point_in_rect(int px, int py, int x, int y, int w, int h)
+{
+    return px >= x && px <= x + w &&
+           py >= y && py <= y + h;
+}
+
+static int over_quit(int px, int py)
+{
+    return point_in_rect(px, py, QUIT_X, QUIT_Y, BTN_W, BTN_H);
+}
+
+static int over_ok(int px, int py)
+{
+    return point_in_rect(px, py, OK_X, OK_Y, BTN_W, BTN_H);
+}
 
 // ----------------------------------------
 // Drawing
@@ -219,8 +249,8 @@ static void render(HDC dc, const char *message)
 
     draw_text(dc, 24, 75, message, 0x00FFFFFF, 2);
 
-    rect(dc, 115, 235, 130, 48, 0x00444455);
-    rect(dc, 315, 235, 130, 48, 0x003B82F6);
+    rect(dc, QUIT_X, QUIT_Y, BTN_W, BTN_H, 0x00444455);
+    rect(dc, OK_X,   OK_Y,   BTN_W, BTN_H, 0x003B82F6);
 
     draw_text(dc, 132, 253, "  QUIT", 0x00FFFFFF, 2);
     draw_text(dc, 350, 253, "  OK", 0x00FFFFFF, 2);
@@ -245,6 +275,11 @@ static LRESULT CALLBACK window_proc(
     case WM_CREATE:
         return 0;
 
+    // We paint everything ourselves, so skip the default
+    // background erase (avoids white flashes).
+    case WM_ERASEBKGND:
+        return 1;
+
     case WM_PAINT: {
         PAINTSTRUCT ps;
         HDC dc = BeginPaint(hwnd, &ps);
@@ -255,6 +290,23 @@ static LRESULT CALLBACK window_proc(
         EndPaint(hwnd, &ps);
         return 0;
     }
+
+    case WM_SETCURSOR:
+        // Only override the cursor inside the client area.
+        if (LOWORD(lParam) == HTCLIENT) {
+            POINT pt;
+            GetCursorPos(&pt);
+            ScreenToClient(hwnd, &pt);
+
+            if (over_quit(pt.x, pt.y) || over_ok(pt.x, pt.y)) {
+                SetCursor(LoadCursorA(NULL, IDC_HAND));
+                return TRUE;
+            }
+
+            SetCursor(LoadCursorA(NULL, IDC_ARROW));
+            return TRUE;
+        }
+        break;
 
     case WM_MOUSEMOVE:
         if (w) {
@@ -271,9 +323,7 @@ static LRESULT CALLBACK window_proc(
         w->mouse_y = GET_Y_LPARAM(lParam);
 
         // QUIT button
-        if (w->mouse_x >= 115 && w->mouse_x <= 245 &&
-            w->mouse_y >= 235 && w->mouse_y <= 283) {
-
+        if (over_quit(w->mouse_x, w->mouse_y)) {
             w->result = 0;
             w->running = 0;
 
@@ -281,9 +331,7 @@ static LRESULT CALLBACK window_proc(
         }
 
         // OK button
-        else if (w->mouse_x >= 315 && w->mouse_x <= 445 &&
-                 w->mouse_y >= 235 && w->mouse_y <= 283) {
-
+        else if (over_ok(w->mouse_x, w->mouse_y)) {
             w->result = 1;
             w->running = 0;
 
@@ -341,12 +389,13 @@ int windows_native(char *text)
         return -1;
     }
 
-    // Fixed client size: 560x320
+    // Compute the outer size using the FINAL (non-resizable) style,
+    // so the client area is exactly W x H with no unpainted border.
     RECT r = {0, 0, W, H};
 
     AdjustWindowRect(
         &r,
-        WS_OVERLAPPEDWINDOW,
+        WINDOW_STYLE,
         FALSE
     );
 
@@ -354,7 +403,7 @@ int windows_native(char *text)
         0,
         class_name,
         "Message",
-        WS_OVERLAPPEDWINDOW,
+        WINDOW_STYLE,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         r.right - r.left,
@@ -374,21 +423,6 @@ int windows_native(char *text)
         hwnd,
         GWLP_USERDATA,
         (LONG_PTR)&w
-    );
-
-    // Prevent resizing.
-    SetWindowLongA(
-        hwnd,
-        GWL_STYLE,
-        GetWindowLongA(hwnd, GWL_STYLE) &
-        ~(WS_THICKFRAME | WS_MAXIMIZEBOX)
-    );
-
-    // Recalculate non-client area.
-    SetWindowPos(
-        hwnd, NULL, 0, 0, 0, 0,
-        SWP_NOMOVE | SWP_NOSIZE |
-        SWP_NOZORDER | SWP_FRAMECHANGED
     );
 
     ShowWindow(hwnd, SW_SHOW);
