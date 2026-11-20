@@ -1,4 +1,4 @@
-all:
+build-linux:
 	mkdir -p build
 
 	gcc -c linux/main.c \
@@ -24,7 +24,6 @@ all:
 	ar rcs libkerror.a \
 		build/*.o
 
-run:
 	gcc test/main.c -L. -lkerror \
 		-L/usr/local/lib \
 		-lwayland-client \
@@ -35,6 +34,17 @@ run:
 		-lXdmcp \
 		-o app
 
+build-windows:
+	mkdir -p build
+
+	gcc -c windows/main.c \
+		-I./include \
+		-o build/main.o
+
+	ar rcs libkerror.a \
+		build/*.o
+
+run:
 	./app
 
 clean:
