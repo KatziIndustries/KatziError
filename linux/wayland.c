@@ -235,23 +235,23 @@ void render()
 
     if (msg.progressactive == false) {
         rect(wp, 115, 235, 130, 48, 0x00444455);
-        rect(wp, 315, 235, 130, 48, 0x003B82F6);
 
         draw_button_text(wp, 115, 235, 130, 48,
                          msg.button1, 0x00FFFFFF, 2);
 
-        draw_button_text(wp, 315, 235, 130, 48,
-                         msg.button2, 0x00FFFFFF, 2);
+        if (msg.buttoncount > 1) {
+            rect(wp, 315, 235, 130, 48, 0x003B82F6);
+            draw_button_text(wp, 315, 235, 130, 48,
+                             msg.button2, 0x00FFFFFF, 2);
+        }
     } else {
         // msg.progress (float) 0.0 -> 1.0
-        rect(wp, 315, 235, 130, 48, 0x00444455);
 
         float progress = msg.progress;
 
-        rect(wp, 315, 235, (int)(130 * progress), 48, 0x003B82F6);
+        rect(wp, 20, 185, (W-40), 48, 0x00444455);
+        rect(wp, 20, 185, (int)((W - 40) * progress), 48, 0x003B82F6);
 
-        draw_button_text(wp, 315, 235, 130, 48,
-                     msg.button2, 0x00FFFFFF, 2);
     }
 }
 
@@ -318,7 +318,7 @@ static void toplevel_close(void *data,
                            struct xdg_toplevel *top)
 {
     Wayland *w = data;
-    w->result = -1;
+    w->result = 0;
     w->running = 0;
 }
 
