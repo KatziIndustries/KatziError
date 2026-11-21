@@ -57,13 +57,17 @@ build-linux-shared:
 		-I./include \
 		-o build/wayland.o
 
+	gcc -fPIC -c shared/message.c \
+		$(pkg-config --cflags wayland-client) \
+		-I./include \
+		-o build/message.o
+
 	gcc -fPIC -c linux/xdg-shell-protocol.c \
 		$(pkg-config --cflags wayland-client) \
 		-I./include \
 		-o build/xdg-shell-protocol.o
 
 	gcc -shared -o libkerror.so build/*.o \
-		-L/usr/local/lib \
 		-lwayland-client \
 		-lffi \
 		-lX11 \
