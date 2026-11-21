@@ -4,6 +4,8 @@
 #include <wayland-client.h>
 #include "xdg-shell-client-protocol.h"
 
+#include "kerror.h"
+
 #include <linux/input-event-codes.h>
 
 #include <stdint.h>
@@ -14,6 +16,8 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <errno.h>
+#include <poll.h>
 
 #define W 560
 #define H 320
@@ -44,6 +48,9 @@ typedef struct {
     int mouse_x;
     int mouse_y;
 } Wayland;
+
+static Wayland w = {0};
+static Wayland *wp = &w;
 
 // ----------------------------------------
 // Drawing
@@ -193,27 +200,74 @@ static void draw_text(Wayland *w, int x, int y,
     }
 }
 
+static void draw_button_text(
+    Wayland *w,
+    int x, int y,
+    int width, int height,
+    const char *text,
+    uint32_t color,
+    int scale)
+{
+    int text_width = (int)strlen(text) * 6 * scale - scale;
+    int text_height = 7 * scale;
+
+    int text_x = x + (width - text_width) / 2;
+    int text_y = y + (height - text_height) / 2;
+
+    draw_text(w, text_x, text_y, text, color, scale);
+}
+
 // ----------------------------------------
 // Render dialog
 // ----------------------------------------
 
-static void render(Wayland *w, const char *message)
+// static void render(Wayland *w, const char *message)
+void render()
 {
-    rect(w, 0, 0, W, H, 0x001B1B24);
+    rect(wp, 0, 0, W, H, 0x001B1B24);
 
     // Header
-    rect(w, 0, 0, W, 42, 0x00272735);
-    draw_text(w, 18, 15, "MESSAGE", 0x00FFFFFF, 2);
+    rect(wp, 0, 0, W, 42, 0x00272735);
+    draw_text(wp, 18, 15, msg.title, 0x00FFFFFF, 2);
 
     // Message
-    draw_text(w, 24, 75, message, 0x00FFFFFF, 2);
+    draw_text(wp, 24, 75, msg.text, 0x00FFFFFF, 2);
 
-    // Buttons
-    rect(w, 115, 235, 130, 48, 0x00444455);
-    rect(w, 315, 235, 130, 48, 0x003B82F6);
+    if (msg.progressactive == false) {
+        rect(wp, 115, 235, 130, 48, 0x00444455);
+        rect(wp, 315, 235, 130, 48, 0x003B82F6);
 
-    draw_text(w, 132, 253, "  QUIT", 0x00FFFFFF, 2);
-    draw_text(w, 350, 253, "  OK", 0x00FFFFFF, 2);
+        draw_button_text(wp, 115, 235, 130, 48,
+                         msg.button1, 0x00FFFFFF, 2);
+
+        draw_button_text(wp, 315, 235, 130, 48,
+                         msg.button2, 0x00FFFFFF, 2);
+    } else {
+        // msg.progress (float) 0.0 -> 1.0
+        rect(wp, 315, 235, 130, 48, 0x00444455);
+
+        float progress = msg.progress;
+
+        rect(wp, 315, 235, (int)(130 * progress), 48, 0x003B82F6);
+
+        draw_button_text(wp, 315, 235, 130, 48,
+                     msg.button2, 0x00FFFFFF, 2);
+    }
+}
+
+void linux_wayland_redraw(void)
+{
+    if (!wp->configured || !wp->surface ||
+        !wp->display || !wp->buffer)
+        return;
+
+    render();
+
+    wl_surface_attach(wp->surface, wp->buffer, 0, 0);
+    wl_surface_damage(wp->surface, 0, 0, W, H);
+    wl_surface_commit(wp->surface);
+
+    wl_display_flush(wp->display);
 }
 
 // ----------------------------------------
@@ -230,13 +284,16 @@ static const struct xdg_wm_base_listener wm_listener = {
     .ping = wm_ping
 };
 
-static void surface_configure(void *data,
-                              struct xdg_surface *surface,
-                              uint32_t serial)
+static void surface_configure(
+    void *data,
+    struct xdg_surface *surface,
+    uint32_t serial)
 {
     Wayland *w = data;
 
     xdg_surface_ack_configure(surface, serial);
+
+    render();
 
     wl_surface_attach(w->surface, w->buffer, 0, 0);
     wl_surface_damage(w->surface, 0, 0, W, H);
@@ -261,13 +318,22 @@ static void toplevel_close(void *data,
                            struct xdg_toplevel *top)
 {
     Wayland *w = data;
-    w->result = 0;
+    w->result = -1;
     w->running = 0;
 }
 
 static const struct xdg_toplevel_listener toplevel_listener = {
     .configure = toplevel_configure,
     .close = toplevel_close
+};
+
+static void buffer_release(void *data, struct wl_buffer *buffer)
+{
+    // Buffer is available for reuse.
+}
+
+static const struct wl_buffer_listener buffer_listener = {
+    .release = buffer_release
 };
 
 // ----------------------------------------
@@ -283,9 +349,16 @@ static void pointer_enter(void *data, struct wl_pointer *pointer,
     w->mouse_y = wl_fixed_to_int(y);
 }
 
-static void pointer_leave(void *data, struct wl_pointer *pointer,
-                          uint32_t serial, struct wl_surface *surface)
+static void pointer_leave(
+    void *data,
+    struct wl_pointer *pointer,
+    uint32_t serial,
+    struct wl_surface *surface)
 {
+    Wayland *w = data;
+
+    w->mouse_x = -1;
+    w->mouse_y = -1;
 }
 
 static void pointer_motion(void *data, struct wl_pointer *pointer,
@@ -296,9 +369,14 @@ static void pointer_motion(void *data, struct wl_pointer *pointer,
     w->mouse_y = wl_fixed_to_int(y);
 }
 
-static void pointer_button(void *data, struct wl_pointer *pointer,
-                           uint32_t serial, uint32_t time,
-                           uint32_t button, uint32_t state)
+
+static void pointer_button(
+    void *data,
+    struct wl_pointer *pointer,
+    uint32_t serial,
+    uint32_t time,
+    uint32_t button,
+    uint32_t state)
 {
     Wayland *w = data;
 
@@ -311,18 +389,23 @@ static void pointer_button(void *data, struct wl_pointer *pointer,
     int x = w->mouse_x;
     int y = w->mouse_y;
 
-    // QUIT button
-    if (x >= 115 && x <= 245 && y >= 235 && y <= 283) {
-        w->result = 0;
-        w->running = 0;
+    // QUIT
+    if (x >= 115 && x < 245 &&
+        y >= 235 && y < 283) {
+
+        w->result = 1;
+        return;
     }
 
-    // OK button
-    if (x >= 315 && x <= 445 && y >= 235 && y <= 283) {
-        w->result = 1;
-        w->running = 0;
+    // OK
+    if (x >= 315 && x < 445 &&
+        y >= 235 && y < 283) {
+
+        w->result = 2;
+        return;
     }
 }
+
 
 static void pointer_axis(void *data, struct wl_pointer *pointer,
                          uint32_t time, uint32_t axis, wl_fixed_t value)
@@ -503,6 +586,8 @@ static int create_buffer(Wayland *w)
         WL_SHM_FORMAT_XRGB8888
     );
 
+    wl_buffer_add_listener(w->buffer, &buffer_listener, w);
+
     wl_shm_pool_destroy(pool);
     close(fd);
 
@@ -552,16 +637,22 @@ static void cleanup(Wayland *w)
         wl_display_disconnect(w->display);
 }
 
-// ----------------------------------------
-// PUBLIC API
-// ----------------------------------------
-
-int linux_wayland(char *text)
+void linux_wayland_close(void)
 {
-    Wayland w = {0};
+    if (!w.display)
+        return;
+
+    cleanup(&w);
+
+    w = (Wayland){0};
+}
+
+int linux_wayland_init(char *text)
+{
+    w = (Wayland){0};
 
     w.running = 1;
-    w.result = -1;
+    w.result = 0;
 
     w.display = wl_display_connect(NULL);
 
@@ -582,7 +673,8 @@ int linux_wayland(char *text)
     if (create_buffer(&w) < 0)
         goto error;
 
-    render(&w, text ? text : "");
+//    render(&w, text ? text : "");
+    render();
 
     w.surface = wl_compositor_create_surface(w.compositor);
 
@@ -603,24 +695,103 @@ int linux_wayland(char *text)
     xdg_toplevel_set_min_size(w.toplevel, W, H);
     xdg_toplevel_set_max_size(w.toplevel, W, H);
 
-    // Initial commit, then wait for configure.
     wl_surface_commit(w.surface);
 
     if (wl_display_roundtrip(w.display) < 0)
         goto error;
 
-    // Main Wayland event loop.
-    while (w.running) {
-        if (wl_display_dispatch(w.display) < 0)
-            goto error;
-    }
-
-    int result = w.result;
-
-    cleanup(&w);
-    return result;
+    return 0;
 
 error:
-    cleanup(&w);
+    linux_wayland_close();
+    return -1;
+}
+
+
+
+int linux_wayland_pull(void)
+{
+    if (!w.display)
+        return -1;
+
+    if (!w.running)
+        return w.result;
+
+    // Dispatch already received events.
+    if (wl_display_dispatch_pending(w.display) < 0)
+        goto error;
+
+    if (!w.running)
+        return w.result;
+
+    // Prepare to read.
+    while (wl_display_prepare_read(w.display) != 0) {
+        if (wl_display_dispatch_pending(w.display) < 0)
+            goto error;
+
+        if (!w.running)
+            return w.result;
+    }
+
+    // Flush outgoing Wayland requests.
+    int want_write = 0;
+
+    if (wl_display_flush(w.display) < 0) {
+        if (errno == EAGAIN) {
+            want_write = 1;
+        } else {
+            wl_display_cancel_read(w.display);
+            goto error;
+        }
+    }
+
+    // Nonblocking socket poll.
+    struct pollfd pfd = {
+        .fd = wl_display_get_fd(w.display),
+        .events = POLLIN | (want_write ? POLLOUT : 0),
+        .revents = 0
+    };
+
+    int ret;
+
+    do {
+        ret = poll(&pfd, 1, 0);
+    } while (ret < 0 && errno == EINTR);
+
+    if (ret < 0) {
+        wl_display_cancel_read(w.display);
+        goto error;
+    }
+
+    // No events available.
+    if (ret == 0) {
+        wl_display_cancel_read(w.display);
+        return 0;
+    }
+
+    // Read incoming events.
+    if (pfd.revents & POLLIN) {
+        if (wl_display_read_events(w.display) < 0)
+            goto error;
+    } else {
+        wl_display_cancel_read(w.display);
+    }
+
+    if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
+        goto error;
+
+    // Dispatch mouse clicks, motion, close events, etc.
+    if (wl_display_dispatch_pending(w.display) < 0)
+        goto error;
+
+    int output = w.result;
+
+    w.result = 0;
+
+    return output;
+
+error:
+    w.running = 0;
+    w.result = -1;
     return -1;
 }

@@ -16,6 +16,11 @@ build-linux:
 		-I./include \
 		-o build/wayland.o
 
+	gcc -c shared/message.c \
+		$(pkg-config --cflags wayland-client) \
+		-I./include \
+		-o build/message.o
+
 	gcc -c linux/xdg-shell-protocol.c \
 		$(pkg-config --cflags wayland-client) \
 		-I./include \
@@ -24,7 +29,7 @@ build-linux:
 	ar rcs libkerror.a \
 		build/*.o
 
-#	gcc test/main.c -L. -lkerror \
+	gcc test/main.c -L. -lkerror \
 		-L/usr/local/lib \
 		-lwayland-client \
 		-lffi \
