@@ -244,26 +244,24 @@ static void render(void)
     draw_text(wp, 24, 75, msg.text, 0x00FFFFFF, 2);
 
     if (msg.progressactive == false) {
-        rect(wp, BTN1_X, BTN1_Y, BTN_W, BTN_H, 0x00444455);
-        rect(wp, BTN2_X, BTN2_Y, BTN_W, BTN_H, 0x003B82F6);
+        rect(wp, 115, 235, 130, 48, 0x00444455);
 
-        draw_button_text(wp, BTN1_X, BTN1_Y, BTN_W, BTN_H,
+        draw_button_text(wp, 115, 235, 130, 48,
                          msg.button1, 0x00FFFFFF, 2);
 
-        draw_button_text(wp, BTN2_X, BTN2_Y, BTN_W, BTN_H,
-                         msg.button2, 0x00FFFFFF, 2);
+        if (msg.buttoncount > 1) {
+            rect(wp, 315, 235, 130, 48, 0x003B82F6);
+            draw_button_text(wp, 315, 235, 130, 48,
+                             msg.button2, 0x00FFFFFF, 2);
+        }
     } else {
         // msg.progress (float) 0.0 -> 1.0
-        rect(wp, BTN2_X, BTN2_Y, BTN_W, BTN_H, 0x00444455);
-
         float progress = msg.progress;
         if (progress < 0.0f) progress = 0.0f;
         if (progress > 1.0f) progress = 1.0f;
 
-        rect(wp, BTN2_X, BTN2_Y, (int)(BTN_W * progress), BTN_H, 0x003B82F6);
-
-        draw_button_text(wp, BTN2_X, BTN2_Y, BTN_W, BTN_H,
-                         msg.button2, 0x00FFFFFF, 2);
+        rect(wp, 20, 185, (W - 40), 48, 0x00444455);
+        rect(wp, 20, 185, (int)((W - 40) * progress), 48, 0x003B82F6);
     }
 }
 
