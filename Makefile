@@ -86,6 +86,10 @@ build-windows:
 		-I./include \
 		-o build/native.o
 
+	gcc -c shared/message.c \
+		-I./include \
+		-o build/message.o
+
 	ar rcs libkerror.a \
 		build/*.o
 
