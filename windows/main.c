@@ -10,7 +10,7 @@ int kerror(char *text)
 
 void kerror_init()
 {
-    windows_native_init();
+    windows_native_init("");
 }
 
 int kerror_pull()

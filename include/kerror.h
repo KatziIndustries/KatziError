@@ -6,7 +6,7 @@ void redraw();
 
 int linux_wayland_init(char *text);
 int linux_x11_init(char *text);
-void windows_native_init();
+int windows_native_init(char *text);
 void kerror_init();
 
 int linux_wayland_pull();
