@@ -22,3 +22,7 @@ void kerror_close()
 {
     windows_native_close();
 }
+
+void redraw()
+{
+}
