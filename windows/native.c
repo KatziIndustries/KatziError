@@ -267,7 +267,7 @@ static void render(void)
     }
 }
 
-void windows_native_redraw(void)
+void redraw(void)
 {
     if (!wp->hwnd || !wp->pixels)
         return;
