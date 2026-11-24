@@ -234,13 +234,20 @@ void render()
     draw_text(wp, 24, 75, msg.text, 0x00FFFFFF, 2);
 
     if (msg.progressactive == false) {
-        rect(wp, 115, 235, 130, 48, 0x00444455);
+
+        size_t len = strlen(msg.button1) > strlen(msg.button2)
+                     ? strlen(msg.button1)
+                     : strlen(msg.button2);
+
+        //rect(wp, 115, 235, 130, 48, 0x00444455);
+        centerd_rect(wp, 180, 235, (int)len, 48, 0x00444455);
 
         draw_button_text(wp, 115, 235, 130, 48,
                          msg.button1, 0x00FFFFFF, 2);
 
         if (msg.buttoncount > 1) {
-            rect(wp, 315, 235, 130, 48, 0x003B82F6);
+            // rect(wp, 315, 235, 130, 48, 0x003B82F6);
+            centerd_rect(wp, 380, 235, (int)len, 48, 0x003B82F6);
             draw_button_text(wp, 315, 235, 130, 48,
                              msg.button2, 0x00FFFFFF, 2);
         }

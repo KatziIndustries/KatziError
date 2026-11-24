@@ -8,7 +8,7 @@ int main() {
     kerror_init();
 
     kerror_set_title("Hallo Aarono");
-    kerror_set_button2("12345678901");
+    kerror_set_button2("1234567890123");
     kerror_set_buttoncount(2);
 
     int running = 1;
