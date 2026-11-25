@@ -225,7 +225,7 @@ static void centerd_rect(
     int height,
     uint32_t color
 ){
-    int len = 65 > 6*(int)dx ? 65 : 6*(int)dx;
+    int len = 65 > 6*(int)(dx+2) ? 65 : 6*(int)(dx+2);
     rect(
         w,
         cx - len,

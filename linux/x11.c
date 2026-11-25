@@ -203,6 +203,25 @@ static void draw_button_text(
     draw_text(w, text_x, text_y, text, color, scale);
 }
 
+static void centerd_rect(
+    X11 *w,
+    int cx,
+    int y,
+    size_t dx,
+    int height,
+    uint32_t color
+){
+    int len = 65 > 6*(int)(dx+2) ? 65 : 6*(int)(dx+2);
+    rect(
+        w,
+        cx - len,
+        y,
+        2 * len,
+        height,
+        color
+    );
+}
+
 // ----------------------------------------
 // Render dialog
 // (static + x11_ prefix so it can't collide with the Wayland
@@ -221,24 +240,31 @@ static void x11_render(void)
     draw_text(wp, 24, 75, msg.text, 0x00FFFFFF, 2);
 
     if (msg.progressactive == false) {
-        rect(wp, 115, 235, 130, 48, 0x00444455);
-        rect(wp, 315, 235, 130, 48, 0x003B82F6);
+
+        size_t len = strlen(msg.button1) > strlen(msg.button2)
+                     ? strlen(msg.button1)
+                     : strlen(msg.button2);
+
+        //rect(wp, 115, 235, 130, 48, 0x00444455);
+        centerd_rect(wp, 180, 235, (int)len, 48, 0x00444455);
 
         draw_button_text(wp, 115, 235, 130, 48,
                          msg.button1, 0x00FFFFFF, 2);
 
-        draw_button_text(wp, 315, 235, 130, 48,
-                         msg.button2, 0x00FFFFFF, 2);
+        if (msg.buttoncount > 1) {
+            // rect(wp, 315, 235, 130, 48, 0x003B82F6);
+            centerd_rect(wp, 380, 235, (int)len, 48, 0x003B82F6);
+            draw_button_text(wp, 315, 235, 130, 48,
+                             msg.button2, 0x00FFFFFF, 2);
+        }
     } else {
         // msg.progress (float) 0.0 -> 1.0
-        rect(wp, 315, 235, 130, 48, 0x00444455);
 
         float progress = msg.progress;
 
-        rect(wp, 315, 235, (int)(130 * progress), 48, 0x003B82F6);
+        rect(wp, 20, 185, (W-40), 48, 0x00444455);
+        rect(wp, 20, 185, (int)((W - 40) * progress), 48, 0x003B82F6);
 
-        draw_button_text(wp, 315, 235, 130, 48,
-                         msg.button2, 0x00FFFFFF, 2);
     }
 }
 

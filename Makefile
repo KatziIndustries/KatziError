@@ -93,6 +93,8 @@ build-windows:
 	ar rcs libkerror.a \
 		build/*.o
 
+	gcc test/main.c -L./ -lkerror -mwindows -o app.exe
+
 run:
 	./app
 
