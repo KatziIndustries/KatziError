@@ -217,6 +217,25 @@ static void draw_button_text(
     draw_text(w, text_x, text_y, text, color, scale);
 }
 
+static void centerd_rect(
+    Wayland *w,
+    int cx,
+    int y,
+    size_t dx,
+    int height,
+    uint32_t color
+){
+    int len = 65 > 6*(int)dx ? 65 : 6*(int)dx;
+    rect(
+        w,
+        cx - len,
+        y,
+        2 * len,
+        height,
+        color
+    );
+}
+
 // ----------------------------------------
 // Render dialog
 // ----------------------------------------
